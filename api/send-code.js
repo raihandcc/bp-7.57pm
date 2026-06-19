@@ -6,7 +6,20 @@ const client = twilio(
 );
 
 module.exports = async (req, res) => {
-  const { phone } = req.body;
+  if (req.method !== "POST") {
+    return res.status(200).json({
+      message: "OTP send endpoint is working. Use POST with phone."
+    });
+  }
+
+  const { phone } = req.body || {};
+
+  if (!phone) {
+    return res.status(400).json({
+      success: false,
+      error: "Phone number is required"
+    });
+  }
 
   try {
     await client.verify.v2
@@ -16,9 +29,7 @@ module.exports = async (req, res) => {
         channel: "sms"
       });
 
-    return res.status(200).json({
-      success: true
-    });
+    return res.status(200).json({ success: true });
   } catch (err) {
     return res.status(400).json({
       success: false,
