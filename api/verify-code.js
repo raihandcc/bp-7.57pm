@@ -5,39 +5,49 @@ const client = twilio(
   process.env.TWILIO_AUTH_TOKEN
 );
 
+function setCors(res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+}
+
+function formatCanadianPhone(phone) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.length === 10) return "+1" + digits;
+  if (digits.length === 11 && digits.startsWith("1")) return "+" + digits;
+  if (String(phone).startsWith("+")) return phone;
+  return phone;
+}
+
 module.exports = async (req, res) => {
+  setCors(res);
+
+  if (req.method === "OPTIONS") return res.status(200).end();
 
   if (req.method !== "POST") {
-    return res.status(200).json({
-      message: "OTP verify endpoint is working. Use POST with phone and code."
-    });
+    return res.status(200).json({ message: "Verify OTP endpoint working" });
   }
 
   const { phone, code } = req.body || {};
+  const formattedPhone = formatCanadianPhone(phone);
 
-  if (!phone || !code) {
-    return res.status(400).json({
-      success: false,
-      error: "Phone and code are required"
-    });
+  if (!formattedPhone || !code) {
+    return res.status(400).json({ success: false, error: "Phone and code are required" });
   }
 
   try {
     const result = await client.verify.v2
       .services(process.env.VERIFY_SERVICE_SID)
       .verificationChecks.create({
-        to: phone,
+        to: formattedPhone,
         code: code
       });
 
     return res.status(200).json({
-      success: result.status === "approved"
+      success: result.status === "approved",
+      status: result.status
     });
-
   } catch (err) {
-    return res.status(400).json({
-      success: false,
-      error: err.message
-    });
+    return res.status(400).json({ success: false, error: err.message });
   }
 };
